@@ -101,6 +101,7 @@ public final class Server {
         boolean control = options.getControl();
         boolean video = options.getVideo();
         boolean audio = options.getAudio();
+        boolean rotation = options.getRotation();
         boolean sendDummyByte = options.getSendDummyByte();
         boolean camera = options.getVideoSource() == VideoSource.CAMERA;
 
@@ -108,7 +109,7 @@ public final class Server {
 
         List<AsyncProcessor> asyncProcessors = new ArrayList<>();
 
-        DesktopConnection connection = DesktopConnection.open(scid, tunnelForward, video, audio, control, sendDummyByte);
+        DesktopConnection connection = DesktopConnection.open(scid, tunnelForward, video, audio, control,rotation, sendDummyByte);
         try {
             if (options.getSendDeviceMeta()) {
                 connection.sendDeviceMeta(Device.getDeviceName());
@@ -140,6 +141,8 @@ public final class Server {
                 SurfaceCapture surfaceCapture;
                 if (options.getVideoSource() == VideoSource.DISPLAY) {
                     surfaceCapture = new ScreenCapture(device);
+
+                    ((ScreenCapture)surfaceCapture).setRotationFd(connection.getRotationOutputStream());
                 } else {
                     surfaceCapture = new CameraCapture(options.getCameraId(), options.getCameraFacing(), options.getCameraSize(),
                             options.getMaxSize(), options.getCameraAspectRatio(), options.getCameraFps(), options.getCameraHighSpeed());

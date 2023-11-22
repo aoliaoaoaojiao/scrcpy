@@ -23,6 +23,9 @@ public final class DesktopConnection implements Closeable {
     private final LocalSocket audioSocket;
     private final FileDescriptor audioFd;
 
+    private final LocalSocket rotationSocket;
+    private final OutputStream rotationOutputStream;
+
     private final LocalSocket controlSocket;
     private final InputStream controlInputStream;
     private final OutputStream controlOutputStream;
@@ -30,10 +33,11 @@ public final class DesktopConnection implements Closeable {
     private final ControlMessageReader reader = new ControlMessageReader();
     private final DeviceMessageWriter writer = new DeviceMessageWriter();
 
-    private DesktopConnection(LocalSocket videoSocket, LocalSocket audioSocket, LocalSocket controlSocket) throws IOException {
+    private DesktopConnection(LocalSocket videoSocket, LocalSocket audioSocket, LocalSocket controlSocket, LocalSocket rotationSocket) throws IOException {
         this.videoSocket = videoSocket;
         this.controlSocket = controlSocket;
         this.audioSocket = audioSocket;
+        this.rotationSocket = rotationSocket;
         if (controlSocket != null) {
             controlInputStream = controlSocket.getInputStream();
             controlOutputStream = controlSocket.getOutputStream();
@@ -43,6 +47,7 @@ public final class DesktopConnection implements Closeable {
         }
         videoFd = videoSocket != null ? videoSocket.getFileDescriptor() : null;
         audioFd = audioSocket != null ? audioSocket.getFileDescriptor() : null;
+        rotationOutputStream = rotationSocket != null ? rotationSocket.getOutputStream() : null;
     }
 
     private static LocalSocket connect(String abstractName) throws IOException {
@@ -60,13 +65,14 @@ public final class DesktopConnection implements Closeable {
         return SOCKET_NAME_PREFIX + String.format("_%08x", scid);
     }
 
-    public static DesktopConnection open(int scid, boolean tunnelForward, boolean video, boolean audio, boolean control, boolean sendDummyByte)
+    public static DesktopConnection open(int scid, boolean tunnelForward, boolean video, boolean audio, boolean control, boolean rotation, boolean sendDummyByte)
             throws IOException {
         String socketName = getSocketName(scid);
 
         LocalSocket videoSocket = null;
         LocalSocket audioSocket = null;
         LocalSocket controlSocket = null;
+        LocalSocket rotationSocket = null;
         try {
             if (tunnelForward) {
                 try (LocalServerSocket localServerSocket = new LocalServerSocket(socketName)) {
@@ -94,6 +100,14 @@ public final class DesktopConnection implements Closeable {
                             sendDummyByte = false;
                         }
                     }
+                    if (rotation) {
+                        rotationSocket = localServerSocket.accept();
+                        if (sendDummyByte) {
+                            // send one byte so the client may read() to detect a connection error
+                            rotationSocket.getOutputStream().write(0);
+                            sendDummyByte = false;
+                        }
+                    }
                 }
             } else {
                 if (video) {
@@ -104,6 +118,9 @@ public final class DesktopConnection implements Closeable {
                 }
                 if (control) {
                     controlSocket = connect(socketName);
+                }
+                if (rotation) {
+                    rotationSocket = connect(socketName);
                 }
             }
         } catch (IOException | RuntimeException e) {
@@ -116,10 +133,13 @@ public final class DesktopConnection implements Closeable {
             if (controlSocket != null) {
                 controlSocket.close();
             }
+            if (rotationSocket != null) {
+                rotationSocket.close();
+            }
             throw e;
         }
 
-        return new DesktopConnection(videoSocket, audioSocket, controlSocket);
+        return new DesktopConnection(videoSocket, audioSocket, controlSocket, rotationSocket);
     }
 
     private LocalSocket getFirstSocket() {
@@ -128,6 +148,9 @@ public final class DesktopConnection implements Closeable {
         }
         if (audioSocket != null) {
             return audioSocket;
+        }
+        if (rotationSocket != null) {
+            return rotationSocket;
         }
         return controlSocket;
     }
@@ -145,6 +168,10 @@ public final class DesktopConnection implements Closeable {
             controlSocket.shutdownInput();
             controlSocket.shutdownOutput();
         }
+        if (rotationSocket != null) {
+            rotationSocket.shutdownInput();
+            rotationSocket.shutdownOutput();
+        }
     }
 
     public void close() throws IOException {
@@ -156,6 +183,9 @@ public final class DesktopConnection implements Closeable {
         }
         if (controlSocket != null) {
             controlSocket.close();
+        }
+        if (rotationSocket != null) {
+            rotationSocket.close();
         }
     }
 
@@ -177,6 +207,10 @@ public final class DesktopConnection implements Closeable {
 
     public FileDescriptor getAudioFd() {
         return audioFd;
+    }
+
+    public OutputStream getRotationOutputStream() {
+        return rotationOutputStream;
     }
 
     public ControlMessage receiveControlMessage() throws IOException {

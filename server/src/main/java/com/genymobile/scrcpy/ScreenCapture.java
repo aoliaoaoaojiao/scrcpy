@@ -7,10 +7,20 @@ import android.os.Build;
 import android.os.IBinder;
 import android.view.Surface;
 
+import java.io.FileDescriptor;
+import java.io.IOException;
+import java.io.OutputStream;
+
 public class ScreenCapture extends SurfaceCapture implements Device.RotationListener, Device.FoldListener {
 
     private final Device device;
     private IBinder display;
+
+    private OutputStream rotationStream;
+
+    public void setRotationFd(OutputStream rotationStream) {
+        this.rotationStream = rotationStream;
+    }
 
     public ScreenCapture(Device device) {
         this.device = device;
@@ -60,6 +70,13 @@ public class ScreenCapture extends SurfaceCapture implements Device.RotationList
 
     @Override
     public void onRotationChanged(int rotation) {
+        if (this.rotationStream!=null){
+            try {
+                this.rotationStream.write(rotation);
+            }catch (IOException e) {
+                Ln.e("rotation change write error",e);
+            }
+        }
         requestReset();
     }
 

@@ -7,6 +7,7 @@ import android.os.Looper;
 import android.os.SystemClock;
 import android.view.Surface;
 
+import java.io.FileDescriptor;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
