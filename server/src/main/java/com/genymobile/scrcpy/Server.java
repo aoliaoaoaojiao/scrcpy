@@ -101,7 +101,7 @@ public final class Server {
         boolean control = options.getControl();
         boolean video = options.getVideo();
         boolean audio = options.getAudio();
-        boolean rotation = options.getRotation();
+        boolean size_info = options.getSizeInfo();
         boolean sendDummyByte = options.getSendDummyByte();
         boolean camera = options.getVideoSource() == VideoSource.CAMERA;
 
@@ -109,7 +109,7 @@ public final class Server {
 
         List<AsyncProcessor> asyncProcessors = new ArrayList<>();
 
-        DesktopConnection connection = DesktopConnection.open(scid, tunnelForward, video, audio, control,rotation, sendDummyByte);
+        DesktopConnection connection = DesktopConnection.open(scid, tunnelForward, video, audio, control, size_info, sendDummyByte);
         try {
             if (options.getSendDeviceMeta()) {
                 connection.sendDeviceMeta(Device.getDeviceName());
@@ -140,9 +140,11 @@ public final class Server {
                         options.getSendFrameMeta());
                 SurfaceCapture surfaceCapture;
                 if (options.getVideoSource() == VideoSource.DISPLAY) {
-                    surfaceCapture = new ScreenCapture(device);
-
-                    ((ScreenCapture)surfaceCapture).setRotationFd(connection.getRotationOutputStream());
+                    if (options.getSizeInfo()){
+                        surfaceCapture = new ScreenCapture(device,new Streamer(connection.getSizeInfoFd()));
+                    }else {
+                        surfaceCapture = new ScreenCapture(device);
+                    }
                 } else {
                     surfaceCapture = new CameraCapture(options.getCameraId(), options.getCameraFacing(), options.getCameraSize(),
                             options.getMaxSize(), options.getCameraAspectRatio(), options.getCameraFps(), options.getCameraHighSpeed());
@@ -154,9 +156,7 @@ public final class Server {
 
             Completion completion = new Completion(asyncProcessors.size());
             for (AsyncProcessor asyncProcessor : asyncProcessors) {
-                asyncProcessor.start((fatalError) -> {
-                    completion.addCompleted(fatalError);
-                });
+                asyncProcessor.start(completion::addCompleted);
             }
 
             completion.await();
@@ -236,7 +236,8 @@ public final class Server {
 
         try {
             scrcpy(options);
-        } catch (ConfigurationException e) {
+        } catch (Exception e) {
+            Ln.e("error", e);
             // Do not print stack trace, a user-friendly error-message has already been logged
         }
     }

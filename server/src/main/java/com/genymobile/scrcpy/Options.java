@@ -11,7 +11,7 @@ public class Options {
     private int scid = -1; // 31-bit non-negative value, or -1
     private boolean video = true;
     private boolean audio = true;
-    private boolean rotation = false;
+    private boolean sizeInfo = false;
     private int maxSize;
     private VideoCodec videoCodec = VideoCodec.H264;
     private AudioCodec audioCodec = AudioCodec.OPUS;
@@ -75,8 +75,8 @@ public class Options {
         return maxSize;
     }
 
-    public boolean getRotation() {
-        return rotation;
+    public boolean getSizeInfo() {
+        return sizeInfo;
     }
 
     public VideoCodec getVideoCodec() {
@@ -270,8 +270,8 @@ public class Options {
                 case "audio":
                     options.audio = Boolean.parseBoolean(value);
                     break;
-                case "rotation":
-                    options.rotation = Boolean.parseBoolean(value);
+                case "size_info":
+                    options.sizeInfo = Boolean.parseBoolean(value);
                     break;
                 case "video_codec":
                     VideoCodec videoCodec = VideoCodec.findByName(value);

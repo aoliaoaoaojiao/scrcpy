@@ -27,6 +27,30 @@ public final class Streamer {
         this.sendFrameMeta = sendFrameMeta;
     }
 
+    public Streamer(FileDescriptor fd) {
+        this.codec = null;
+        this.sendCodecMeta = false;
+        this.sendFrameMeta = false;
+        this.fd = fd;
+    }
+
+    final static int HEAD_SIZE = 4;
+    public void writeSizeInfo(SizeInfo data){
+        try {
+            String jsonData = data.toJson();
+            ByteBuffer buffer = ByteBuffer.allocate(HEAD_SIZE + jsonData.getBytes().length);
+
+            buffer.putInt(HEAD_SIZE + jsonData.getBytes().length);
+            buffer.put(jsonData.getBytes());
+
+            buffer.flip();
+            IO.writeFully(fd, buffer);
+        }catch (IOException e){
+            Ln.e("write size info err:",e);
+        }
+
+    }
+
     public Codec getCodec() {
         return codec;
     }

@@ -14,16 +14,16 @@ import java.io.OutputStream;
 public class ScreenCapture extends SurfaceCapture implements Device.RotationListener, Device.FoldListener {
 
     private final Device device;
+    private Streamer sizeInfoStreamer;
     private IBinder display;
-
-    private OutputStream rotationStream;
-
-    public void setRotationFd(OutputStream rotationStream) {
-        this.rotationStream = rotationStream;
-    }
 
     public ScreenCapture(Device device) {
         this.device = device;
+    }
+    public ScreenCapture(Device device,Streamer sizeInfoStreamer) {
+        this.device = device;
+        this.sizeInfoStreamer = sizeInfoStreamer;
+        this.sizeInfoStreamer.writeSizeInfo(new SizeInfo(device.getScreenInfo()));
     }
 
     @Override
@@ -70,12 +70,8 @@ public class ScreenCapture extends SurfaceCapture implements Device.RotationList
 
     @Override
     public void onRotationChanged(int rotation) {
-        if (this.rotationStream!=null){
-            try {
-                this.rotationStream.write(rotation);
-            }catch (IOException e) {
-                Ln.e("rotation change write error",e);
-            }
+        if (this.sizeInfoStreamer!=null){
+            this.sizeInfoStreamer.writeSizeInfo(new SizeInfo(device.getScreenInfo()));
         }
         requestReset();
     }
